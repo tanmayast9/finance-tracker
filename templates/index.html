@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Calculators</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Financial Calculators</h1>
+            <div class="flex items-center space-x-4">
+                <span>Welcome, {{ current_user.username }}!</span>
+                <a href="{{ url_for('dashboard') }}" class="bg-white text-blue-600 px-4 py-2 rounded hover:bg-gray-100">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} bg-{{ 'green' if category == 'success' else 'red' if category == 'error' else 'blue' }}-100 border border-{{ 'green' if category == 'success' else 'red' if category == 'error' else 'blue' }}-400 text-{{ 'green' if category == 'success' else 'red' if category == 'error' else 'blue' }}-700 px-4 py-3 rounded mt-4 mx-4">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="container mx-auto px-4 py-8">
+        
+        <!-- EMI Calculator -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">EMI Calculator</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <input type="number" id="emi-principal" placeholder="Principal Amount" class="border rounded px-3 py-2">
+                <input type="number" id="emi-rate" placeholder="Annual Rate (%)" step="0.1" class="border rounded px-3 py-2">
+                <input type="number" id="emi-tenure" placeholder="Tenure (months)" class="border rounded px-3 py-2">
+            </div>
+            <button onclick="calculateEMI()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Calculate EMI</button>
+            <div id="emi-result" class="mt-4"></div>
+        </div>
+
+        <!-- SIP Calculator -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">SIP Calculator</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <input type="number" id="sip-monthly" placeholder="Monthly Investment" class="border rounded px-3 py-2">
+                <input type="number" id="sip-return" placeholder="Expected Return (%)" step="0.1" class="border rounded px-3 py-2">
+                <input type="number" id="sip-years" placeholder="Years" class="border rounded px-3 py-2">
+            </div>
+            <button onclick="calculateSIP()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Calculate SIP</button>
+            <div id="sip-result" class="mt-4"></div>
+        </div>
+
+        <!-- Compound Interest Calculator -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Compound Interest Calculator</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <input type="number" id="ci-principal" placeholder="Principal Amount" class="border rounded px-3 py-2">
+                <input type="number" id="ci-rate" placeholder="Annual Rate (%)" step="0.1" class="border rounded px-3 py-2">
+                <input type="number" id="ci-years" placeholder="Years" class="border rounded px-3 py-2">
+                <input type="number" id="ci-compounds" placeholder="Compounds/Year" value="12" class="border rounded px-3 py-2">
+            </div>
+            <button onclick="calculateInterest()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">Calculate Interest</button>
+            <div id="ci-result" class="mt-4"></div>
+        </div>
+    </div>
+
+    <script>
+        async function calculateEMI() {
+            const principal = document.getElementById('emi-principal').value;
+            const rate = document.getElementById('emi-rate').value;
+            const tenure = document.getElementById('emi-tenure').value;
+            
+            const response = await fetch('/calculate_emi', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({principal, rate, tenure})
+            });
+            
+            const result = await response.json();
+            document.getElementById('emi-result').innerHTML = `
+                <div class="bg-blue-50 p-4 rounded">
+                    <p class="text-lg font-semibold">Monthly EMI: ₹${result.emi}</p>
+                    <p>Total Interest: ₹${result.total_interest}</p>
+                    <p>Total Amount: ₹${result.total_amount}</p>
+                </div>
+            `;
+        }
+
+        async function calculateSIP() {
+            const monthly = document.getElementById('sip-monthly').value;
+            const return_rate = document.getElementById('sip-return').value;
+            const years = document.getElementById('sip-years').value;
+            
+            const response = await fetch('/calculate_sip', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({monthly, return: return_rate, years})
+            });
+            
+            const result = await response.json();
+            document.getElementById('sip-result').innerHTML = `
+                <div class="bg-green-50 p-4 rounded">
+                    <p class="text-lg font-semibold">Future Value: ₹${result.future_value}</p>
+                    <p>Total Invested: ₹${result.total_invested}</p>
+                    <p>Returns: ₹${result.returns}</p>
+                </div>
+            `;
+        }
+
+        async function calculateInterest() {
+            const principal = document.getElementById('ci-principal').value;
+            const rate = document.getElementById('ci-rate').value;
+            const years = document.getElementById('ci-years').value;
+            const compounds = document.getElementById('ci-compounds').value;
+            
+            const response = await fetch('/calculate_interest', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({principal, rate, years, compounds})
+            });
+            
+            const result = await response.json();
+            document.getElementById('ci-result').innerHTML = `
+                <div class="bg-purple-50 p-4 rounded">
+                    <p class="text-lg font-semibold">Total Amount: ₹${result.total_amount}</p>
+                    <p>Principal: ₹${result.principal}</p>
+                    <p>Interest Earned: ₹${result.interest}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,550 @@
+/* Finance App Styles - Black + Silver only */
+
+:root {
+    --black: #0a0a0a;
+    --black-soft: #1a1a1a;
+    --silver-light: #f5f5f5;
+    --silver: #c0c0c0;
+    --silver-mid: #909090;
+    --silver-dark: #606060;
+    --silver-darker: #404040;
+    --primary: var(--silver);
+    --secondary: var(--black);
+    --success: var(--silver);
+    --danger: var(--silver-dark);
+    --warning: var(--silver-mid);
+    --info: var(--silver);
+    --light: var(--silver-light);
+    --dark: var(--black);
+    --gray: var(--silver-mid);
+    --spacing: 1rem;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--light);
+    color: var(--dark);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode {
+    background-color: var(--dark);
+    color: var(--light);
+}
+
+/* Navbar */
+.navbar {
+    background: linear-gradient(135deg, var(--black-soft), var(--black));
+    color: var(--silver-light);
+    padding: var(--spacing);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.navbar-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing);
+}
+
+.logo {
+    font-size: 2rem;
+}
+
+.navbar-brand h1 {
+    font-size: 1.5rem;
+}
+
+.navbar-menu {
+    list-style: none;
+    display: flex;
+    gap: 2rem;
+}
+
+.navbar-menu a {
+    color: var(--silver-light);
+    text-decoration: none;
+    font-weight: 500;
+    transition: opacity 0.3s;
+    cursor: pointer;
+}
+
+.navbar-menu a:hover {
+    opacity: 0.8;
+}
+
+.theme-toggle {
+    background: var(--silver-darker);
+    border: none;
+    color: var(--silver-light);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: background-color 0.3s;
+}
+
+.theme-toggle:hover {
+    background: var(--silver-dark);
+}
+
+/* Main Content */
+.main-content {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.page {
+    display: none;
+    animation: fadeIn 0.3s;
+}
+
+.page.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Cards */
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid var(--silver);
+}
+
+body.dark-mode .card {
+    background: var(--black-soft);
+    border: 1px solid var(--silver-dark);
+}
+
+.card h3 {
+    margin-bottom: 1rem;
+    color: var(--black);
+}
+
+body.dark-mode .card h3 {
+    color: var(--silver);
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.dashboard-grid .card {
+    text-align: center;
+}
+
+.income-card {
+    border-left: 4px solid var(--silver);
+}
+
+.expense-card {
+    border-left: 4px solid var(--silver-dark);
+}
+
+.savings-card {
+    border-left: 4px solid var(--silver-mid);
+}
+
+.balance-card {
+    border-left: 4px solid var(--silver-darker);
+}
+
+.amount {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 1rem 0;
+    color: var(--black);
+}
+
+body.dark-mode .amount {
+    color: var(--silver-light);
+}
+
+/* Health Score */
+.health-score {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+.score-circle {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--silver), var(--black));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--silver-light);
+}
+
+.insights {
+    flex: 1;
+}
+
+.insights ul {
+    list-style: none;
+    padding: 0;
+}
+
+.insights li {
+    padding: 0.5rem 0;
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.insights li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--silver-dark);
+    font-weight: bold;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+thead {
+    background-color: var(--silver-light);
+}
+
+body.dark-mode thead {
+    background-color: var(--silver-darker);
+}
+
+th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+}
+
+td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--silver);
+}
+
+body.dark-mode td {
+    border-bottom-color: var(--silver-dark);
+}
+
+tr:hover {
+    background-color: var(--silver-light);
+}
+
+body.dark-mode tr:hover {
+    background-color: var(--silver-darker);
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--gray);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+}
+
+body.dark-mode .form-group input,
+body.dark-mode .form-group select,
+body.dark-mode .form-group textarea {
+    background-color: var(--black-soft);
+    color: var(--silver-light);
+    border-color: var(--silver-dark);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--black);
+    box-shadow: 0 0 0 2px var(--silver);
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: var(--black);
+    color: var(--silver-light);
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: var(--black-soft);
+}
+
+.btn-secondary {
+    background-color: var(--silver);
+    color: var(--black);
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-secondary:hover {
+    background-color: var(--silver-mid);
+}
+
+.phone-verify-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.phone-verify-row input {
+    flex: 1;
+}
+
+.verified-badge {
+    color: var(--silver-dark);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.auth-error {
+    color: var(--black);
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+body.dark-mode .auth-error {
+    color: var(--silver);
+}
+
+/* Profile view mode (text only) */
+.profile-view { }
+.profile-view-row { margin-bottom: 1rem; }
+.profile-label { display: inline-block; min-width: 100px; font-weight: 600; color: var(--black); }
+.profile-value { color: var(--black); }
+body.dark-mode .profile-label,
+body.dark-mode .profile-value { color: var(--silver-light); }
+.profile-form-wrap { margin-top: 0; }
+.profile-section-title { margin: 1.25rem 0 0.5rem; font-size: 1.1rem; color: var(--black); }
+body.dark-mode .profile-section-title { color: var(--silver); }
+
+button {
+    margin-right: 0.5rem;
+}
+
+/* Modals */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 200;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+body.dark-mode .modal-content {
+    background-color: var(--black-soft);
+    border: 1px solid var(--silver-dark);
+}
+
+.close {
+    float: right;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--dark);
+    transition: color 0.3s;
+}
+
+body.dark-mode .close {
+    color: var(--light);
+}
+
+.close:hover {
+    color: var(--primary);
+}
+
+/* Section Controls */
+.section-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.section-controls input {
+    flex: 1;
+    min-width: 250px;
+}
+
+/* Budget Grid */
+.budget-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.budget-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid var(--silver);
+}
+
+body.dark-mode .budget-item {
+    background-color: var(--black-soft);
+    border-color: var(--silver-dark);
+}
+
+.budget-item h4 {
+    margin-bottom: 1rem;
+    color: var(--black);
+}
+
+body.dark-mode .budget-item h4 {
+    color: var(--silver);
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--silver);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 1rem 0;
+}
+
+body.dark-mode .progress-bar {
+    background-color: var(--silver-darker);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--silver), var(--silver-dark));
+    transition: width 0.3s;
+}
+
+.progress-fill.danger {
+    background: linear-gradient(90deg, var(--silver-dark), var(--black));
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .navbar-menu {
+        gap: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    .health-score {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .score-circle {
+        width: 120px;
+        height: 120px;
+        font-size: 2rem;
+    }
+
+    table {
+        font-size: 0.9rem;
+    }
+
+    th, td {
+        padding: 0.5rem;
+    }
+
+    .section-controls {
+        flex-direction: column;
+    }
+
+    .section-controls input {
+        min-width: unset;
+    }
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.card {
+    animation: slideIn 0.3s;
+}

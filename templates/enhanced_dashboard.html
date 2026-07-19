@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Budget Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Budget Tracker</h1>
+            <div class="flex items-center space-x-4">
+                <span>Welcome, {{ current_user.username }}!</span>
+                <a href="{{ url_for('profile_setup') }}" class="bg-white text-blue-600 px-4 py-2 rounded hover:bg-gray-100">Profile</a>
+                <a href="{{ url_for('logout') }}" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} bg-{{ 'green' if category == 'success' else 'red' if category == 'error' else 'blue' }}-100 border border-{{ 'green' if category == 'success' else 'red' if category == 'error' else 'blue' }}-400 text-{{ 'green' if category == 'success' else 'red' if category == 'error' else 'blue' }}-700 px-4 py-3 rounded mb-4">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Account Balances -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">Account Balances</h3>
+                {% if accounts %}
+                    {% for account in accounts %}
+                    <div class="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded">
+                        <div>
+                            <p class="font-medium">{{ account.account_name }}</p>
+                            <p class="text-sm text-gray-600">{{ account.bank_name }}</p>
+                        </div>
+                        <p class="text-lg font-bold text-blue-600">₹{{ "%.2f"|format(account.balance) }}</p>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-500">No accounts added yet</p>
+                    <a href="{{ url_for('add_account') }}" class="text-blue-500 hover:text-blue-700">Add Account</a>
+                {% endif %}
+            </div>
+
+            <!-- Monthly Overview -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">Monthly Overview</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Monthly Salary:</span>
+                        <span class="font-bold text-green-600">₹{{ "%.2f"|format(current_user.monthly_salary) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Total Income:</span>
+                        <span class="font-bold text-green-600">₹{{ "%.2f"|format(monthly_income) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Total Expenses:</span>
+                        <span class="font-bold text-red-600">₹{{ "%.2f"|format(monthly_expenses) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Net Savings:</span>
+                        <span class="font-bold text-blue-600">₹{{ "%.2f"|format(monthly_income - monthly_expenses) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Status -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">Budget Status</h3>
+                {% if budgets %}
+                    {% for budget in budgets[:3] %}
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-gray-600">{{ budget.category }}</span>
+                            <span class="text-sm">₹{{ "%.2f"|format(budget.monthly_spent) }} / ₹{{ "%.2f"|format(budget.monthly_limit) }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-{{ 'red' if budget.monthly_spent > budget.monthly_limit else 'green' }}-500 h-2 rounded-full" style="width: {{ (budget.monthly_spent / budget.monthly_limit * 100) if budget.monthly_limit > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-500">No budgets set</p>
+                    <a href="{{ url_for('set_budget') }}" class="text-blue-500 hover:text-blue-700">Set Budget</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Recent Transactions</h3>
+                <a href="{{ url_for('transactions') }}" class="text-blue-500 hover:text-blue-700">View All</a>
+            </div>
+            
+            {% if recent_transactions %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Account</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for transaction in recent_transactions %}
+                                <tr>
+                                    <td class="px-4 py-3 text-sm">{{ transaction.date.strftime('%Y-%m-%d') }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ transaction.description or transaction.category }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ transaction.category }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ transaction.account.account_name }}</td>
+                                    <td class="px-4 py-3 text-sm font-bold {{ 'text-green-600' if transaction.transaction_type.value == 'income' else 'text-red-600' }}">
+                                        {{ '+' if transaction.transaction_type.value == 'income' else '-' }}₹{{ "%.2f"|format(transaction.amount) }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-gray-500 text-center py-4">No transactions yet</p>
+                <div class="text-center">
+                    <a href="{{ url_for('add_transaction') }}" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add Transaction</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Notifications -->
+        {% if notifications %}
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
+            <h3 class="text-lg font-semibold text-yellow-800 mb-2">Notifications</h3>
+            {% for notification in notifications %}
+                <div class="text-yellow-700">{{ notification }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <a href="{{ url_for('add_transaction') }}" class="bg-blue-500 text-white p-4 rounded-lg text-center hover:bg-blue-600">
+                <p class="font-semibold">Add Transaction</p>
+            </a>
+            <a href="{{ url_for('set_budget') }}" class="bg-green-500 text-white p-4 rounded-lg text-center hover:bg-green-600">
+                <p class="font-semibold">Set Budget</p>
+            </a>
+            <a href="{{ url_for('add_account') }}" class="bg-purple-500 text-white p-4 rounded-lg text-center hover:bg-purple-600">
+                <p class="font-semibold">Add Account</p>
+            </a>
+            <a href="{{ url_for('analytics') }}" class="bg-orange-500 text-white p-4 rounded-lg text-center hover:bg-orange-600">
+                <p class="font-semibold">Analytics</p>
+            </a>
+        </div>
+    </div>
+</body>
+</html>
