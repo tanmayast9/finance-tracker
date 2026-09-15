@@ -9,13 +9,17 @@
 </head>
 <body class="bg-gray-50">
     <!-- Navigation -->
-    <nav class="bg-blue-600 text-white p-4">
+    <nav class="bg-blue-600 text-white p-4 shadow-lg">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold">Budget Tracker</h1>
+            <div class="flex items-center space-x-6">
+                <h1 class="text-2xl font-bold">💰 Budget Tracker</h1>
+                <span class="text-blue-100">{{ current_user.full_name or current_user.username }}</span>
+            </div>
             <div class="flex items-center space-x-4">
-                <span>Welcome, {{ current_user.username }}!</span>
-                <a href="{{ url_for('profile_setup') }}" class="bg-white text-blue-600 px-4 py-2 rounded hover:bg-gray-100">Profile</a>
-                <a href="{{ url_for('logout') }}" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</a>
+                <a href="{{ url_for('user_profile') }}" class="bg-white text-blue-600 px-4 py-2 rounded hover:bg-gray-100 font-semibold">👤 Profile</a>
+                <form method="POST" action="{{ url_for('logout') }}" style="display: inline;">
+                    <button type="submit" class="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 font-semibold transition">🚪 Logout</button>
+                </form>
             </div>
         </div>
     </nav>
@@ -32,23 +36,61 @@
             {% endif %}
         {% endwith %}
 
+        <!-- User Profile Card -->
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg shadow-md p-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold">{{ user.full_name or user.username }}</h2>
+                    <p class="text-blue-100">@{{ user.username }}</p>
+                    <p class="text-blue-100">{{ user.email }}</p>
+                </div>
+                <div>
+                    <p class="text-blue-100">Member since:</p>
+                    <p class="font-semibold">{{ user.created_at.strftime('%B %d, %Y') }}</p>
+                    <p class="text-blue-100 mt-2">Last login:</p>
+                    <p class="font-semibold">{{ user.last_login.strftime('%B %d, %Y') if user.last_login else 'First login' }}</p>
+                </div>
+                <div>
+                    {% if user.phone %}
+                    <p class="text-blue-100">Phone:</p>
+                    <p class="font-semibold">{{ user.phone }}</p>
+                    {% endif %}
+                    <p class="text-blue-100 mt-2">Currency:</p>
+                    <p class="font-semibold">{{ user.currency }}</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Account Balances -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold mb-4 text-gray-800">Account Balances</h3>
+            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-500">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">💳 Total Balance</h3>
+                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full">{{ accounts|length }} Account(s)</span>
+                </div>
+                <p class="text-4xl font-bold text-blue-600 mb-4">₹{{ "%.2f"|format(total_balance) }}</p>
+                
                 {% if accounts %}
-                    {% for account in accounts %}
-                    <div class="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded">
-                        <div>
-                            <p class="font-medium">{{ account.account_name }}</p>
-                            <p class="text-sm text-gray-600">{{ account.bank_name }}</p>
+                    <div class="space-y-3 mb-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-2">Your Accounts:</div>
+                        {% for account in accounts %}
+                        <div class="flex justify-between items-center p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+                            <div>
+                                <p class="font-medium text-gray-800">{{ account.account_name }}</p>
+                                <p class="text-xs text-gray-500">{{ account.account_type }}</p>
+                            </div>
+                            <p class="text-lg font-bold text-blue-600">₹{{ "%.2f"|format(account.balance) }}</p>
                         </div>
-                        <p class="text-lg font-bold text-blue-600">₹{{ "%.2f"|format(account.balance) }}</p>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
+                    <a href="{{ url_for('add_account') }}" class="block w-full text-center bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-semibold transition">
+                        + Add New Account
+                    </a>
                 {% else %}
-                    <p class="text-gray-500">No accounts added yet</p>
-                    <a href="{{ url_for('add_account') }}" class="text-blue-500 hover:text-blue-700">Add Account</a>
+                    <p class="text-gray-500 mb-4">No accounts added yet</p>
+                    <a href="{{ url_for('add_account') }}" class="block w-full text-center bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-semibold transition">
+                        ➕ Add Your First Account
+                    </a>
                 {% endif %}
             </div>
 
@@ -57,44 +99,87 @@
                 <h3 class="text-lg font-semibold mb-4 text-gray-800">Monthly Overview</h3>
                 <div class="space-y-3">
                     <div class="flex justify-between">
-                        <span class="text-gray-600">Monthly Salary:</span>
-                        <span class="font-bold text-green-600">₹{{ "%.2f"|format(current_user.monthly_salary) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Total Income:</span>
+                        <span class="text-gray-600">Monthly Income:</span>
                         <span class="font-bold text-green-600">₹{{ "%.2f"|format(monthly_income) }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-gray-600">Total Expenses:</span>
+                        <span class="text-gray-600">Monthly Expenses:</span>
                         <span class="font-bold text-red-600">₹{{ "%.2f"|format(monthly_expenses) }}</span>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Net Savings:</span>
-                        <span class="font-bold text-blue-600">₹{{ "%.2f"|format(monthly_income - monthly_expenses) }}</span>
+                    <div class="flex justify-between border-t pt-2">
+                        <span class="text-gray-600 font-semibold">Net Savings:</span>
+                        <span class="font-bold text-blue-600 text-lg">₹{{ "%.2f"|format(monthly_income - monthly_expenses) }}</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Budget Status -->
+            <!-- Lifetime Stats -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold mb-4 text-gray-800">Budget Status</h3>
-                {% if budgets %}
-                    {% for budget in budgets[:3] %}
-                    <div class="mb-4">
-                        <div class="flex justify-between mb-1">
-                            <span class="text-sm text-gray-600">{{ budget.category }}</span>
-                            <span class="text-sm">₹{{ "%.2f"|format(budget.monthly_spent) }} / ₹{{ "%.2f"|format(budget.monthly_limit) }}</span>
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">Lifetime Statistics</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Total Income:</span>
+                        <span class="font-bold text-green-600">₹{{ "%.2f"|format(total_income) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Total Expenses:</span>
+                        <span class="font-bold text-red-600">₹{{ "%.2f"|format(total_expenses) }}</span>
+                    </div>
+                    <div class="flex justify-between border-t pt-2">
+                        <span class="text-gray-600 font-semibold">Total Saved:</span>
+                        <span class="font-bold text-blue-600 text-lg">₹{{ "%.2f"|format(total_income - total_expenses) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Accounts Management Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800">💳 All Your Accounts ({{ accounts|length }})</h2>
+                <a href="{{ url_for('add_account') }}" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 font-semibold">+ Add Account</a>
+            </div>
+
+            {% if accounts %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for account in accounts %}
+                    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-5 hover:shadow-lg transition">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <p class="text-sm text-gray-600 capitalize">{{ account.account_type }}</p>
+                                <h3 class="text-lg font-bold text-gray-800">{{ account.account_name }}</h3>
+                            </div>
+                            <span class="text-2xl">
+                                {% if account.account_type == 'bank' %}🏦
+                                {% elif account.account_type == 'cash' %}💵
+                                {% elif account.account_type == 'credit_card' %}💳
+                                {% else %}💰
+                                {% endif %}
+                            </span>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-{{ 'red' if budget.monthly_spent > budget.monthly_limit else 'green' }}-500 h-2 rounded-full" style="width: {{ (budget.monthly_spent / budget.monthly_limit * 100) if budget.monthly_limit > 0 else 0 }}%"></div>
+                        
+                        <div class="bg-white rounded p-3 mb-3 text-center">
+                            <p class="text-gray-600 text-xs">Current Balance</p>
+                            <p class="text-2xl font-bold text-blue-600">₹{{ "%.2f"|format(account.balance) }}</p>
+                        </div>
+
+                        <div class="flex justify-between text-xs text-gray-600 mb-3">
+                            <span>{{ account.currency }}</span>
+                            <span class="{% if account.is_active %}text-green-600 font-bold{% else %}text-red-600 font-bold{% endif %}">
+                                {% if account.is_active %}✓ Active{% else %}✗ Inactive{% endif %}
+                            </span>
                         </div>
                     </div>
                     {% endfor %}
-                {% else %}
-                    <p class="text-gray-500">No budgets set</p>
-                    <a href="{{ url_for('set_budget') }}" class="text-blue-500 hover:text-blue-700">Set Budget</a>
-                {% endif %}
-            </div>
+                </div>
+            {% else %}
+                <div class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <p class="text-gray-600 mb-4">No accounts yet. Create your first account!</p>
+                    <a href="{{ url_for('add_account') }}" class="inline-block bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 font-semibold">
+                        ➕ Create Account
+                    </a>
+                </div>
+            {% endif %}
         </div>
 
         <!-- Recent Transactions -->
@@ -150,19 +235,28 @@
         {% endif %}
 
         <!-- Quick Actions -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <a href="{{ url_for('add_transaction') }}" class="bg-blue-500 text-white p-4 rounded-lg text-center hover:bg-blue-600">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <a href="{{ url_for('add_transaction') }}" class="bg-blue-500 text-white p-4 rounded-lg text-center hover:bg-blue-600 shadow-md transition">
+                <p class="text-2xl mb-2">📝</p>
                 <p class="font-semibold">Add Transaction</p>
             </a>
-            <a href="{{ url_for('set_budget') }}" class="bg-green-500 text-white p-4 rounded-lg text-center hover:bg-green-600">
+            <a href="{{ url_for('set_budget') }}" class="bg-green-500 text-white p-4 rounded-lg text-center hover:bg-green-600 shadow-md transition">
+                <p class="text-2xl mb-2">📊</p>
                 <p class="font-semibold">Set Budget</p>
             </a>
-            <a href="{{ url_for('add_account') }}" class="bg-purple-500 text-white p-4 rounded-lg text-center hover:bg-purple-600">
+            <a href="{{ url_for('add_account') }}" class="bg-purple-500 text-white p-4 rounded-lg text-center hover:bg-purple-600 shadow-md transition">
+                <p class="text-2xl mb-2">➕</p>
                 <p class="font-semibold">Add Account</p>
             </a>
-            <a href="{{ url_for('analytics') }}" class="bg-orange-500 text-white p-4 rounded-lg text-center hover:bg-orange-600">
+            <a href="{{ url_for('analytics') }}" class="bg-orange-500 text-white p-4 rounded-lg text-center hover:bg-orange-600 shadow-md transition">
+                <p class="text-2xl mb-2">📈</p>
                 <p class="font-semibold">Analytics</p>
             </a>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center py-4 text-gray-600 text-sm">
+            <p>Last updated: {{ now.strftime('%B %d, %Y at %I:%M %p') if now else 'just now' }}</p>
         </div>
     </div>
 </body>

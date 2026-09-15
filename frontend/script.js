@@ -1,28 +1,23 @@
 // Finance App JavaScript Frontend
 const API_BASE = (window.location.port === '5000' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname) ? '' : 'http://localhost:5000') + '/api';
-let authToken = localStorage.getItem('authToken');
+let authToken = null;
 let userProfile = null;
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', () => {
-    if (!authToken) {
-        window.location.href = 'login.html';
-    }
-    
-    loadUserProfile();
-    setupEventListeners();
-    showPage('dashboard');
-    setupTheme();
+    loadUserProfile().then(() => {
+        if (!userProfile) return;
+        setupEventListeners();
+        showPage('dashboard');
+        setupTheme();
+    });
 });
 
 // Load User Profile from database (called after login/signup and when opening Profile)
 async function loadUserProfile() {
-    const token = localStorage.getItem('authToken');
-    if (!token) return;
-    authToken = token;
     try {
         const response = await fetch(`${API_BASE}/users/profile`, {
-            headers: { 'Authorization': `Bearer ${authToken}` }
+            credentials: 'same-origin'
         });
         
         if (response.ok) {
@@ -417,7 +412,6 @@ async function sendPhoneOtp() {
         if (response.ok) {
             document.getElementById('otpVerifyGroup').style.display = 'block';
             document.getElementById('otpInput').focus();
-            if (data.otp_for_testing) alert('Development: OTP is ' + data.otp_for_testing);
         } else {
             alert(data.error || 'Failed to send OTP');
         }
@@ -548,7 +542,6 @@ function setupEventListeners() {
 
 // Logout
 function logout() {
-    localStorage.removeItem('authToken');
     window.location.href = 'login.html';
 }
 

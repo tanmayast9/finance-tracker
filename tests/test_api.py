@@ -49,7 +49,7 @@ class TestAuthentication:
         response = client.post('/api/auth/signup', json={
             'username': 'newuser',
             'email': 'new@example.com',
-            'password': 'password123',
+            'password': 'Password123',
             'full_name': 'New User'
         })
         

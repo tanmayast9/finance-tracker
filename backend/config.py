@@ -7,8 +7,8 @@ from datetime import timedelta
 
 class Config:
     """Base configuration"""
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JSON_SORT_KEYS = False
@@ -18,7 +18,7 @@ class Config:
     DATA_PATH = os.getenv('DATA_PATH', 'ml_models/data')
     
     # Security
-    ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', 'your-encryption-key')
+    ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
     SESSION_TIMEOUT = int(os.getenv('SESSION_TIMEOUT', 3600))
 
 class DevelopmentConfig(Config):

@@ -1,16 +1,23 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from datetime import datetime, timedelta
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, exc
 import json
 
-from enhanced_models import db, User, BankAccount, Transaction, Budget, Loan, Investment, Subscription, BudgetGoal, Calculation, ProfileType
+from enhanced_models import (
+    db, User, BankAccount, Transaction, Budget, Loan, Investment, 
+    Subscription, BudgetGoal, Calculation, ProfileType, AccountType, 
+    TransactionType, PaymentMode, Category, FinancialHealth, Alert, 
+    AuditLog, Verification
+)
 from enhanced_forms import (
     LoginForm, SignupForm, ProfileSetupForm, BankAccountForm, TransactionForm, 
     BudgetForm, LoanForm, InvestmentForm, SubscriptionForm, BudgetGoalForm, TransactionFilterForm
 )
 from config import Config
 from ml_models.calculators import EMICalculator, InterestCalculator, SIPCalculator
+from backend.utils.audit_logger import AuditLogger
+from backend.utils.otp_manager import OTPManager
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -47,14 +54,25 @@ def login():
         if user and user.check_password(form.password.data):
             login_user(user)
             
+            # Log successful login
+            AuditLogger.log_action(
+                user_id=user.id,
+                action="LOGIN_SUCCESS",
+                action_type="READ",
+                table_name="users"
+            )
+            
             # Check if profile is complete
             if user.monthly_salary == 0:
                 flash('Please complete your profile setup', 'info')
                 return redirect(url_for('profile_setup'))
             
-            flash('Login successful!', 'success')
+            flash('✅ Login successful!', 'success')
             return redirect(url_for('dashboard'))
-        flash('Invalid username or password', 'error')
+        
+        # Log failed login attempt
+        print(f"⚠️ Failed login attempt for user: {form.username.data}")
+        flash('❌ Invalid username or password', 'error')
     
     return render_template('login.html', form=form)
 
@@ -65,17 +83,66 @@ def signup():
     
     form = SignupForm()
     if form.validate_on_submit():
-        user = User(
-            username=form.username.data, 
-            email=form.email.data,
-            profile_type=ProfileType[form.profile_type.data]
-        )
-        user.set_password(form.password.data)
-        db.session.add(user)
-        db.session.commit()
-        flash('Account created successfully! Please complete your profile.', 'success')
-        login_user(user)
-        return redirect(url_for('profile_setup'))
+        try:
+            # Check if user already exists
+            existing_user = User.query.filter_by(username=form.username.data).first()
+            if existing_user:
+                flash('Username already exists. Please choose another.', 'error')
+                return render_template('signup.html', form=form)
+            
+            existing_email = User.query.filter_by(email=form.email.data).first()
+            if existing_email:
+                flash('Email already registered. Please login or use another email.', 'error')
+                return render_template('signup.html', form=form)
+            
+            # Create new user
+            user = User(
+                username=form.username.data, 
+                email=form.email.data,
+                profile_type=ProfileType[form.profile_type.data]
+            )
+            user.set_password(form.password.data)
+            
+            # Add to session and commit
+            db.session.add(user)
+            db.session.flush()  # Get user ID without committing
+            
+            print(f"✅ Creating user: {form.username.data}")
+            
+            # Commit to database
+            db.session.commit()
+            
+            print(f"✅ User successfully saved to database: {user.id}")
+            
+            # Log signup action
+            AuditLogger.log_action(
+                user_id=user.id,
+                action="USER_SIGNUP",
+                action_type="CREATE",
+                table_name="users",
+                record_id=user.id,
+                new_values={'username': user.username, 'email': user.email}
+            )
+            
+            # Create initial financial health record
+            health = FinancialHealth(user_id=user.id)
+            db.session.add(health)
+            db.session.commit()
+            
+            flash('✅ Account created successfully! Please complete your profile.', 'success')
+            login_user(user)
+            return redirect(url_for('profile_setup'))
+            
+        except exc.IntegrityError as e:
+            db.session.rollback()
+            print(f"❌ Database integrity error: {e}")
+            flash('Error creating account. Please check your information and try again.', 'error')
+            return render_template('signup.html', form=form)
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Signup error: {e}")
+            flash(f'Error creating account: {str(e)}', 'error')
+            return render_template('signup.html', form=form)
     
     return render_template('signup.html', form=form)
 
@@ -97,18 +164,50 @@ def profile_setup():
     
     return render_template('profile_setup.html', form=form)
 
+@app.route('/profile')
+@login_required
+def user_profile():
+    """Display user profile information"""
+    # Get user accounts
+    accounts = BankAccount.query.filter_by(user_id=current_user.id, is_active=True).all()
+    
+    # Get user statistics
+    total_accounts = BankAccount.query.filter_by(user_id=current_user.id).count()
+    total_transactions = Transaction.query.filter_by(user_id=current_user.id).count()
+    active_budgets = Budget.query.filter_by(user_id=current_user.id).count()
+    total_balance = sum(account.balance for account in BankAccount.query.filter_by(user_id=current_user.id).all())
+    
+    return render_template('user_profile.html',
+                         accounts=accounts,
+                         total_accounts=total_accounts,
+                         total_transactions=total_transactions,
+                         active_budgets=active_budgets,
+                         total_balance=total_balance)
+
 @app.route('/logout')
 @login_required
 def logout():
+    # Log logout action before clearing session
+    AuditLogger.log_action(
+        user_id=current_user.id,
+        action="LOGOUT",
+        action_type="UPDATE",
+        table_name="users"
+    )
+    
     logout_user()
-    flash('You have been logged out.', 'info')
+    flash('✅ You have been logged out successfully.', 'info')
     return redirect(url_for('login'))
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    # Get user profile data
+    user = current_user
+    
     # Get user's accounts
     accounts = BankAccount.query.filter_by(user_id=current_user.id, is_active=True).all()
+    total_balance = sum(account.balance for account in accounts)
     
     # Calculate monthly income and expenses
     current_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -129,6 +228,11 @@ def dashboard():
     # Get budgets
     budgets = Budget.query.filter_by(user_id=current_user.id).all()
     
+    # Get all transactions for statistics
+    all_transactions = Transaction.query.filter_by(user_id=current_user.id).all()
+    total_income = sum(t.amount for t in all_transactions if t.transaction_type.value == 'income')
+    total_expenses = sum(t.amount for t in all_transactions if t.transaction_type.value == 'expense')
+    
     # Generate notifications
     notifications = []
     
@@ -143,12 +247,17 @@ def dashboard():
             notifications.append(f"Budget exceeded for {budget.category}: ₹{budget.monthly_spent:.2f} / ₹{budget.monthly_limit:.2f}")
     
     return render_template('enhanced_dashboard.html', 
+                         user=user,
                          accounts=accounts,
+                         total_balance=total_balance,
                          monthly_income=monthly_income,
                          monthly_expenses=monthly_expenses,
+                         total_income=total_income,
+                         total_expenses=total_expenses,
                          recent_transactions=recent_transactions,
                          budgets=budgets,
-                         notifications=notifications)
+                         notifications=notifications,
+                         now=datetime.utcnow())
 
 @app.route('/add_account', methods=['GET', 'POST'])
 @login_required

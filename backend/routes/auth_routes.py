@@ -3,6 +3,7 @@ API routes for authentication (login, signup, logout)
 """
 
 import random
+import secrets
 import string
 from datetime import datetime, timedelta
 
@@ -17,7 +18,12 @@ from backend.utils.helpers import validate_request_json, DateTimeEncoder
 SIGNUP_SCHEMA = {
     'username': {'type': 'string', 'required': True},
     'email': {'type': 'string', 'required': True, 'regex': r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'},
-    'password': {'type': 'string', 'required': True, 'min_length': 6},
+    'password': {
+        'type': 'string',
+        'required': True,
+        'min_length': 8,
+        'regex': r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[A-Z]).+$'
+    },
     'full_name': {'type': 'string', 'required': False},
     'currency': {'type': 'string', 'required': False, 'default': 'USD'}
 }
@@ -33,7 +39,12 @@ REFRESH_TOKEN_SCHEMA = {
 
 CHANGE_PASSWORD_SCHEMA = {
     'current_password': {'type': 'string', 'required': True},
-    'new_password': {'type': 'string', 'required': True, 'min_length': 8}
+    'new_password': {
+        'type': 'string',
+        'required': True,
+        'min_length': 8,
+        'regex': r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[A-Z]).+$'
+    }
 }
 
 SEND_OTP_SCHEMA = {
@@ -51,8 +62,11 @@ bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 # In-memory OTP store: { user_id: { 'otp': str, 'expires_at': datetime } }
 # Use Redis or DB in production for multi-worker setups
 _phone_otp_store = {}
+_phone_otp_attempts = {}
 OTP_EXPIRE_MINUTES = 5
 OTP_LENGTH = 6
+OTP_REQUEST_COOLDOWN_SECONDS = 60
+OTP_MAX_ATTEMPTS = 5
 
 @bp.route('/signup', methods=['POST'])
 @validate_request_json(SIGNUP_SCHEMA)
@@ -93,7 +107,7 @@ def signup(validated_data):
         token = generate_token(user.id)
         token_str = token.decode('utf-8') if isinstance(token, bytes) else str(token)
         
-        return jsonify({
+        response = jsonify({
             'message': 'User created successfully',
             'user': {
                 'id': user.id,
@@ -102,7 +116,9 @@ def signup(validated_data):
                 'full_name': user.full_name
             },
             'token': token_str
-        }), 201
+        })
+        response.set_cookie('access_token', token_str, httponly=True, secure=request.is_secure, samesite='Lax', max_age=86400)
+        return response, 201
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Sign up failed. Check that the database is running and tables exist.'}), 500
@@ -136,7 +152,7 @@ def login(validated_data):
         token = generate_token(user.id)
         token_str = token.decode('utf-8') if isinstance(token, bytes) else str(token)
         
-        return jsonify({
+        response = jsonify({
             'message': 'Login successful',
             'user': {
                 'id': user.id,
@@ -147,7 +163,9 @@ def login(validated_data):
                 'currency': user.currency
             },
             'token': token_str
-        }), 200
+        })
+        response.set_cookie('access_token', token_str, httponly=True, secure=request.is_secure, samesite='Lax', max_age=86400)
+        return response, 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Login failed. Check that the database is running.'}), 500
@@ -188,8 +206,9 @@ def verify_email():
 @token_required
 def logout():
     """User logout endpoint"""
-    # Token is invalidated on client side
-    return jsonify({'message': 'Logged out successfully'}), 200
+    response = jsonify({'message': 'Logged out successfully'})
+    response.delete_cookie('access_token')
+    return response, 200
 
 @bp.route('/change-password', methods=['POST'])
 @token_required
@@ -208,7 +227,7 @@ def change_password(validated_data):
 
 
 def _generate_otp():
-    return ''.join(random.choices(string.digits, k=OTP_LENGTH))
+    return ''.join(secrets.choice(string.digits) for _ in range(OTP_LENGTH))
 
 
 @bp.route('/send-phone-otp', methods=['POST'])
@@ -222,22 +241,20 @@ def send_phone_otp(validated_data):
     user = User.query.get(request.user_id)
     if not user:
         return jsonify({'error': 'User not found'}), 404
+    now = datetime.utcnow()
+    previous = _phone_otp_attempts.get(request.user_id)
+    if previous and now - previous < timedelta(seconds=OTP_REQUEST_COOLDOWN_SECONDS):
+        return jsonify({'error': 'Please wait before requesting another OTP'}), 429
     user.phone = phone
     user.phone_verified = False
     db.session.commit()
     otp = _generate_otp()
     _phone_otp_store[request.user_id] = {
         'otp': otp,
-        'expires_at': datetime.utcnow() + timedelta(minutes=OTP_EXPIRE_MINUTES)
+        'expires_at': now + timedelta(minutes=OTP_EXPIRE_MINUTES),
+        'attempts': 0
     }
-    # TODO: Send SMS via Twilio/AWS SNS when configured. For dev, OTP is returned.
-    import os
-    if os.getenv('FLASK_ENV') == 'development' or os.getenv('DEBUG', '').lower() == 'true':
-        return jsonify({
-            'message': 'OTP sent',
-            'otp_for_testing': otp,
-            'expires_in_minutes': OTP_EXPIRE_MINUTES
-        }), 200
+    _phone_otp_attempts[request.user_id] = now
     return jsonify({
         'message': 'OTP sent to your phone',
         'expires_in_minutes': OTP_EXPIRE_MINUTES
@@ -258,6 +275,10 @@ def verify_phone_otp(validated_data):
     if datetime.utcnow() > stored['expires_at']:
         del _phone_otp_store[request.user_id]
         return jsonify({'error': 'OTP expired. Request a new one.'}), 400
+    stored['attempts'] += 1
+    if stored['attempts'] > OTP_MAX_ATTEMPTS:
+        del _phone_otp_store[request.user_id]
+        return jsonify({'error': 'Too many OTP attempts. Request a new one.'}), 429
     if stored['otp'] != otp:
         return jsonify({'error': 'Invalid OTP'}), 400
     user = User.query.get(request.user_id)

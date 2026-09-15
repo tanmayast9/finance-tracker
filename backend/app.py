@@ -35,13 +35,17 @@ def get_database_uri():
     db_name = os.getenv('DB_NAME', 'finance')
     db_port = os.getenv('DB_PORT', '3306')
 
-    use_mysql = (
-        os.getenv('USE_MYSQL', '').lower() in {'1', 'true', 'yes', 'on'}
-        or db_host not in (None, '', 'localhost', '127.0.0.1')
+    has_explicit_mysql_settings = (
+        db_host not in (None, '', 'localhost', '127.0.0.1')
         or db_user not in (None, '', 'root')
         or db_name not in (None, '', 'finance')
         or db_port not in (None, '', '3306')
         or (db_password not in (None, '') and db_host not in (None, '', 'localhost', '127.0.0.1'))
+    )
+
+    use_mysql = (
+        has_explicit_mysql_settings
+        or os.getenv('USE_MYSQL', '').lower() in {'1', 'true', 'yes', 'on'}
     )
 
     if not use_mysql:
@@ -60,18 +64,23 @@ def create_app():
     # Create the Flask application
     app = Flask(__name__, static_folder=frontend_dir)
     
+    jwt_secret = os.getenv('JWT_SECRET_KEY')
+    if not jwt_secret or len(jwt_secret) < 32:
+        raise RuntimeError('JWT_SECRET_KEY must be configured with at least 32 characters')
+
     # Configuration
     app.config.from_mapping(
         # Database configuration
         SQLALCHEMY_DATABASE_URI=get_database_uri(),
-        JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY', 'jwt-secret-key'),
+        JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY'),
         JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=24)
     )
     
     # Initialize extensions
     db.init_app(app)
     jwt.init_app(app)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    allowed_origins = [origin.strip() for origin in os.getenv('CORS_ORIGINS', 'http://localhost:5000,http://127.0.0.1:5000').split(',') if origin.strip()]
+    CORS(app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=True)
     
     # Register blueprints
     with app.app_context():

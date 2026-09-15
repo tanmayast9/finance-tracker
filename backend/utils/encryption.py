@@ -12,7 +12,9 @@ class EncryptionManager:
     """Manage encryption and decryption of sensitive data"""
     
     def __init__(self):
-        key = os.getenv('ENCRYPTION_KEY', 'your-encryption-key')
+        key = os.getenv('ENCRYPTION_KEY')
+        if not key:
+            raise RuntimeError('ENCRYPTION_KEY must be configured')
         # Ensure key is 32 bytes for Fernet
         if len(key) < 32:
             key = key.ljust(32, 'x')

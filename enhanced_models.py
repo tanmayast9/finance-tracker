@@ -37,6 +37,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    phone = db.Column(db.String(20))
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -44,6 +45,13 @@ class User(UserMixin, db.Model):
     profile_type = db.Column(db.Enum(ProfileType), default=ProfileType.PERSONAL)
     monthly_salary = db.Column(db.Float, default=0.0)
     pin_code = db.Column(db.String(4))  # For PIN lock
+    
+    # OAuth
+    google_id = db.Column(db.String(255), unique=True)
+    
+    # Verification Status
+    email_verified = db.Column(db.Boolean, default=False)
+    phone_verified = db.Column(db.Boolean, default=False)
     
     # Relationships
     accounts = db.relationship('BankAccount', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -54,6 +62,11 @@ class User(UserMixin, db.Model):
     subscriptions = db.relationship('Subscription', backref='user', lazy=True, cascade='all, delete-orphan')
     goals = db.relationship('BudgetGoal', backref='user', lazy=True, cascade='all, delete-orphan')
     calculations = db.relationship('Calculation', backref='user', lazy=True, cascade='all, delete-orphan')
+    categories = db.relationship('Category', backref='user', lazy=True, cascade='all, delete-orphan')
+    financial_health = db.relationship('FinancialHealth', backref='user', uselist=False, cascade='all, delete-orphan')
+    alerts = db.relationship('Alert', backref='user', lazy=True, cascade='all, delete-orphan')
+    audit_logs = db.relationship('AuditLog', backref='user', lazy=True, cascade='all, delete-orphan')
+    verifications = db.relationship('Verification', backref='user', lazy=True, cascade='all, delete-orphan')
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -206,4 +219,89 @@ class Calculation(db.Model):
     calculator_type = db.Column(db.String(50), nullable=False)
     input_data = db.Column(db.Text, nullable=False)
     result_data = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Category(db.Model):
+    __tablename__ = 'categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    name = db.Column(db.String(100), nullable=False)
+    category_type = db.Column(db.String(20), nullable=False)  # income, expense
+    icon = db.Column(db.String(50), default='📁')
+    color = db.Column(db.String(7), default='#3498db')
+    is_custom = db.Column(db.Boolean, default=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class FinancialHealth(db.Model):
+    __tablename__ = 'financial_health'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
+    
+    total_assets = db.Column(db.Float, default=0.0)
+    total_liabilities = db.Column(db.Float, default=0.0)
+    net_worth = db.Column(db.Float, default=0.0)
+    credit_score = db.Column(db.Integer, default=0)
+    savings_rate = db.Column(db.Float, default=0.0)  # percentage
+    expense_ratio = db.Column(db.Float, default=0.0)  # percentage
+    
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Alert(db.Model):
+    __tablename__ = 'alerts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    alert_type = db.Column(db.String(50), nullable=False)  # budget_exceeded, payment_due, etc.
+    title = db.Column(db.String(100), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(20), default='info')  # info, warning, danger
+    
+    is_read = db.Column(db.Boolean, default=False)
+    related_id = db.Column(db.Integer)  # ID of related transaction/budget/etc
+    related_type = db.Column(db.String(50))  # Type: transaction, budget, subscription, loan
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime)
+
+class AuditLog(db.Model):
+    __tablename__ = 'audit_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    action = db.Column(db.String(100), nullable=False)  # login, logout, add_transaction, etc.
+    action_type = db.Column(db.String(20), nullable=False)  # CREATE, READ, UPDATE, DELETE
+    table_name = db.Column(db.String(50))  # Table affected
+    record_id = db.Column(db.Integer)  # ID of affected record
+    
+    old_values = db.Column(db.JSON)  # Previous values
+    new_values = db.Column(db.JSON)  # New values
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(255))
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Verification(db.Model):
+    __tablename__ = 'verifications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    verification_type = db.Column(db.String(20), nullable=False)  # email, phone
+    contact_value = db.Column(db.String(255), nullable=False)  # email or phone
+    otp_code = db.Column(db.String(6))
+    is_verified = db.Column(db.Boolean, default=False)
+    attempts = db.Column(db.Integer, default=0)
+    max_attempts = db.Column(db.Integer, default=5)
+    
+    otp_sent_at = db.Column(db.DateTime)
+    verified_at = db.Column(db.DateTime)
+    expires_at = db.Column(db.DateTime)
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

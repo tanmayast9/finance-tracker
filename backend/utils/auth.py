@@ -12,6 +12,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+def _jwt_secret():
+    secret = os.getenv('JWT_SECRET_KEY')
+    if not secret:
+        raise RuntimeError('JWT_SECRET_KEY must be configured')
+    if len(secret) < 32:
+        raise RuntimeError('JWT_SECRET_KEY must be at least 32 characters')
+    return secret
+
 def hash_password(password):
     """Hash password using bcrypt"""
     salt = bcrypt.gensalt(rounds=12)
@@ -30,7 +38,7 @@ def generate_token(user_id, expires_in=86400):
     }
     token = jwt.encode(
         payload,
-        os.getenv('JWT_SECRET_KEY', 'jwt-secret-key'),
+        _jwt_secret(),
         algorithm='HS256'
     )
     return token
@@ -40,7 +48,7 @@ def verify_token(token):
     try:
         payload = jwt.decode(
             token,
-            os.getenv('JWT_SECRET_KEY', 'jwt-secret-key'),
+            _jwt_secret(),
             algorithms=['HS256']
         )
         return payload['user_id']
@@ -59,9 +67,13 @@ def token_required(f):
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']
             try:
-                token = auth_header.split(" ")[1]
-            except IndexError:
+                scheme, token = auth_header.split(" ", 1)
+                if scheme.lower() != 'bearer':
+                    return jsonify({'message': 'Invalid token format'}), 401
+            except (IndexError, ValueError):
                 return jsonify({'message': 'Invalid token format'}), 401
+        if not token or token in {'null', 'undefined'}:
+            token = request.cookies.get('access_token')
         
         if not token:
             return jsonify({'message': 'Token is missing'}), 401
@@ -79,7 +91,6 @@ def admin_required(f):
     """Decorator to require admin privileges"""
     @wraps(f)
     def decorated(*args, **kwargs):
-        # Add admin verification logic
-        return f(*args, **kwargs)
+        return jsonify({'message': 'Admin access is not configured'}), 403
     
     return decorated
