@@ -7,11 +7,12 @@
 3. [Database Schema](#database-schema)
 4. [Installation & Setup](#installation--setup)
 5. [Configuration](#configuration)
-6. [Running the Application](#running-the-application)
-7. [API Endpoints](#api-endpoints)
-8. [User Workflows](#user-workflows)
-9. [Deployment](#deployment)
-10. [Troubleshooting](#troubleshooting)
+6. [Security](#security)
+7. [Running the Application](#running-the-application)
+8. [API Endpoints](#api-endpoints)
+9. [User Workflows](#user-workflows)
+10. [Deployment](#deployment)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -147,6 +148,48 @@
 - ✅ Session security
 - ✅ HTTPS support ready
 - ✅ Audit logs for compliance
+
+## 🔐 Security
+
+The application includes the following security controls. These controls apply to the Flask API under `backend/` and the browser client under `frontend/`.
+
+### Authentication and Sessions
+- Passwords are stored as bcrypt hashes and are never stored in plaintext.
+- New and changed passwords must be at least 8 characters and contain an alphabetic character, a number, and an uppercase letter.
+- Authentication uses signed JWTs delivered through an `HttpOnly` session cookie.
+- Session cookies use `SameSite=Lax`; enable HTTPS in deployment so cookies can use the `Secure` flag.
+- Logout clears the session cookie.
+- Invalid or malformed bearer tokens are rejected with `401 Unauthorized`.
+
+### Secrets and Configuration
+- `JWT_SECRET_KEY` is required and must contain at least 32 characters. The application fails fast when it is missing or too short.
+- `ENCRYPTION_KEY` is required; do not use placeholder values in deployed environments.
+- Keep `.env` out of source control. The repository ignores `.env` and the local SQLite database.
+- Generate unique random secrets for each environment and rotate them if they are exposed.
+
+### API and Browser Protections
+- CORS is restricted to the origins listed in `CORS_ORIGINS`; do not use `*` in production.
+- User-owned API resources are filtered by the authenticated user ID to prevent cross-account access.
+- Browser authentication does not depend on `localStorage`, reducing token theft impact from client-side script injection.
+- Add HTTPS termination, security headers, and a production WSGI server before exposing the application publicly.
+
+### Phone OTP Protections
+- OTP values are never returned in API responses, including development responses.
+- OTP requests have a cooldown period and verification attempts are limited.
+- Use a durable shared store such as Redis for OTP state when running multiple workers.
+- Connect a trusted SMS provider before enabling phone verification in production.
+
+### Deployment Checklist
+1. Set strong, unique `JWT_SECRET_KEY`, `SECRET_KEY`, and `ENCRYPTION_KEY` values through the deployment secret manager.
+2. Set `CORS_ORIGINS` to the exact HTTPS frontend origin.
+3. Set `DEBUG=False` and do not run Flask's development server in production.
+4. Serve the application behind HTTPS and a reverse proxy.
+5. Configure rate limiting for login, signup, password changes, and OTP endpoints.
+6. Review audit logs and monitor repeated authentication failures.
+7. Run the test suite before deployment:
+   ```bash
+   python -m pytest -q
+   ```
 
 ---
 
